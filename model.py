@@ -2,12 +2,13 @@ from mtcnn import MTCNN
 import cv2 as cv
 
 detector = MTCNN()
-cap = cv.VideoCapture(1)
+cap = cv.VideoCapture(0)
 
 def detect_face(frame):
     while True:
         ret,frame = cap.read()
         faces = detector.detect_faces(frame)
+
         for i in faces:
             x, y, width, height = i['box']
             left_eyeX,left_eyeY = i['keypoints']['left_eye']
