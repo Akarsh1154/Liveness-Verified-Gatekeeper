@@ -1,2 +1,3 @@
-# Liveness-Verified-Gatekeeper
-A high-security biometric access control system leveraging Deep Learning for face recognition and multi-modal liveness detection. This project implements a secure "Gatekeeping" pipeline designed to mitigate presentation attacks (spoofing) using real-time texture analysis and challenge-response protocols.
+# Liveness-Verified Gatekeeper
+
+The **Liveness-Verified Gatekeeper** is a cybersecurity-integrated facial recognition system engineered to defend against **Presentation Attacks** (spoofing). By utilizing **MTCNN** (Multi-task Cascaded Convolutional Networks) for high-precision facial localization and landmark detection, the system moves beyond simple identification to verify actual physical presence. It implements a multi-layered **Liveness Detection** protocol—monitoring physiological signals like blinking and micro-movements—to ensure the subject is a live human being rather than a static photo or digital video playback. This project serves as a robust digital sentry, bridging the gap between advanced AI computer vision and practical, production-grade access control security.
