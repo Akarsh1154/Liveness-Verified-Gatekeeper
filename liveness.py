@@ -8,37 +8,38 @@ class LivenessDetector:
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_detection_confidence=0.7, # Increased for stability
+            min_tracking_confidence=0.7
         )
         
         self.blink_counter = 0
         self.total_blinks = 0
-        self.EYE_CLOSED_THRESHOLD = 0.22  # Adjusted for better precision
-        self.CONSECUTIVE_FRAMES = 2 
+        
+        # --- STABILITY PARAMETERS ---
+        self.EYE_CLOSED_THRESHOLD = 0.20 # Lowered to prevent false positives
+        self.MIN_CONSECUTIVE_FRAMES = 2  # Min frames to be a blink
+        self.MAX_CONSECUTIVE_FRAMES = 8  # Max frames (prevents "looking down" from being a blink)
 
-        # Left eye indices (MediaPipe Canonical Model)
+        # Left eye indices
         self.eye_indices = [33, 160, 158, 133, 153, 144]
 
-    def calculate_ear(self, landmarks, eye_indices, img_w, img_h):
+    def calculate_ear(self, landmarks, eye_indices):
+        """Calculates EAR using 3D coordinates for depth-stability."""
         pts = []
         for idx in eye_indices:
             lm = landmarks[idx]
-            # Convert normalized coordinates to pixel coordinates
-            pts.append(np.array([lm.x * img_w, lm.y * img_h]))
+            # Use X, Y, and Z to handle head movement/rotation
+            pts.append(np.array([lm.x, lm.y, lm.z]))
             
-        # Vertical distances
+        # 3D Euclidean Distances
         v1 = np.linalg.norm(pts[1] - pts[5])
         v2 = np.linalg.norm(pts[2] - pts[4])
-        # Horizontal distance
-        h = np.linalg.norm(pts[0] - pts[3])
+        h  = np.linalg.norm(pts[0] - pts[3])
         
-        # EAR formula
         ear = (v1 + v2) / (2.0 * h)
         return ear
     
     def process_frame(self, frame):
-        img_h, img_w, _ = frame.shape
         rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         results = self.face_mesh.process(rgb_frame)
 
@@ -47,19 +48,22 @@ class LivenessDetector:
 
         if results.multi_face_landmarks:
             landmarks = results.multi_face_landmarks[0].landmark
-            ear = self.calculate_ear(landmarks, self.eye_indices, img_w, img_h)
+            ear = self.calculate_ear(landmarks, self.eye_indices)
 
-            # --- Blink Detection Logic ---
+            # --- Refined Blink Detection Logic ---
             if ear < self.EYE_CLOSED_THRESHOLD:
                 self.blink_counter += 1
             else:
-                # If eyes were closed for enough frames and are now open
-                if self.blink_counter >= self.CONSECUTIVE_FRAMES:
+                # Logic: A real blink is fast. 
+                # If blink_counter is too high (e.g. > 10), it means 
+                # you are looking down or moving, not blinking.
+                if self.MIN_CONSECUTIVE_FRAMES <= self.blink_counter <= self.MAX_CONSECUTIVE_FRAMES:
                     self.total_blinks += 1
-                self.blink_counter = 0
+                
+                self.blink_counter = 0 # Reset
             
-            # If at least one blink is detected, consider it "Live"
-            if self.total_blinks >= 1:
+            # Require at least 2 blinks for higher security
+            if self.total_blinks >= 2:
                 liveness_status = True
 
         return liveness_status, ear, self.total_blinks
